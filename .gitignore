@@ -6,3 +6,4 @@ cmake-build-*/
 *.xcodeproj/
 *.xcuserstate
 .DS_Store
+.claude
