@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/mothproduction/Documents/VSCode/StringLife-VST/**)",
+      "WebSearch",
+      "WebFetch(domain:digitech.com)",
+      "Read(//Users/mothproduction/Documents/VSCode/PhaseLock-VST/Source/**)",
+      "Read(//Users/mothproduction/Documents/VSCode/MothProduction-Shared-VST/UI/Samples/**)",
+      "Read(//Users/mothproduction/Documents/VSCode/PhaseLock-VST/Assets/**)"
+    ],
+    "additionalDirectories": [
+      "/Users/mothproduction/Documents/VSCode/MothProduction-Shared-VST/UI/patterns"
+    ]
+  }
+}
