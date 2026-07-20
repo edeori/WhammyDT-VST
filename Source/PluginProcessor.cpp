@@ -51,14 +51,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout WhirlDTAudioProcessor::creat
     return { params.begin(), params.end() };
 }
 
-void WhirlDTAudioProcessor::prepareToPlay (double, int)
+void WhirlDTAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // No DSP yet — the pitch-shifting algorithm will be implemented once
-    // measurement data for the real Whirl DT is available.
+    dspProcessor.prepare (sampleRate, samplesPerBlock, getTotalNumInputChannels());
+    setLatencySamples (dspProcessor.getLatencySamples());
 }
 
 void WhirlDTAudioProcessor::releaseResources()
 {
+    dspProcessor.reset();
 }
 
 bool WhirlDTAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -74,10 +75,27 @@ void WhirlDTAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
 {
     juce::ScopedNoDenormals noDenormals;
 
-    // Skeleton passthrough — the Whirl/Drop Tune signal chain is not
-    // implemented yet, so audio flows through unmodified.
     for (auto channel = getTotalNumOutputChannels(); channel < buffer.getNumChannels(); ++channel)
         buffer.clear (channel, 0, buffer.getNumSamples());
+
+    const auto loadInt = [this] (const char* parameterId)
+    {
+        return juce::roundToInt (apvts.getRawParameterValue (parameterId)->load());
+    };
+    const auto loadBool = [this] (const char* parameterId)
+    {
+        return apvts.getRawParameterValue (parameterId)->load() >= 0.5f;
+    };
+
+    WhirlDTDSP::Parameters parameters;
+    parameters.whirlMode = loadInt (WhirlDTParam::whirlMode);
+    parameters.whirlEnabled = loadBool (WhirlDTParam::whirlBypass);
+    parameters.pedalPosition = apvts.getRawParameterValue (WhirlDTParam::whirlPedal)->load();
+    parameters.dropTuneMode = loadInt (WhirlDTParam::dropTuneMode);
+    parameters.dropTuneEnabled = loadBool (WhirlDTParam::dropTuneBypass)
+                              || loadBool (WhirlDTParam::momentary);
+
+    dspProcessor.process (buffer, parameters);
 }
 
 juce::AudioProcessorEditor* WhirlDTAudioProcessor::createEditor()

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "WhirlDTDSP.h"
 
 namespace WhirlDTParam
 {
@@ -108,6 +109,8 @@ public:
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    WhirlDTDSP::Processor dspProcessor;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WhirlDTAudioProcessor)
 };

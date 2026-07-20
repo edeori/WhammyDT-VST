@@ -37,9 +37,13 @@ public:
     WhirlSelectorKnob();
 
     void paint (juce::Graphics&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseDrag (const juce::MouseEvent&) override;
 
 private:
     juce::Image knobImage;
+    double dragStartValue = 0.0;
+    float dragStartY = 0.0f;
 };
 
 //==============================================================================
