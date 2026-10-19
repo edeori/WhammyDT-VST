@@ -20,3 +20,9 @@ A Windows-telepítő x64 VST3-at és választható standalone alkalmazást tarta
 - Build: https://github.com/edeori/WhammyDT-VST/actions/runs/39263444328 — mindkét platform sikeres, Mac aláírás/notarizáció rendben, Windows Defender találat nélkül.
 - Külön Publish-próba: https://github.com/edeori/WhammyDT-VST/actions/runs/39263482405 — artifactok és Defender-hash ellenőrzése sikeres, `verify_only=true`, feltöltés kihagyva.
 - A teszt a GitHubon lévő 0.4.4-es kódot építette, a még nem commitolt helyi 0.4.5-módosításokat nem tartalmazza. Az éles Mac 0.4.5-ös telepítő változatlan tartalommal került az állandó `WhirlDT.pkg` címre; SHA-256 egyezés ellenőrizve. A próba nem írta felül sem a Mac-, sem a Windows-letöltést. A tesztbuild éles publikálása verzió-visszaállítás lehet, ezért a kívánt forrásverzió commitolása után indíts új buildet.
+
+## Build kiválasztása a Publish indításakor
+
+A `build_selection` legördülő alapértéke **Latest successful build**. Ilyenkor a `build_run_id` mezőt hagyd üresen: a workflow az alapértelmezett (`main`) ág legutóbb létrehozott sikeres buildjét választja. PR-/másik ági buildek nem választhatók automatikusan. Régi futás újrafuttatása nem lesz ettől a legújabb build. A kiválasztás a Publish végrehajtásakor történik, a futásazonosító egyszer rögzül minden artifacthoz.
+
+Konkrét vagy tagről készült buildhez válaszd a **Specific build ID** opciót, majd add meg a `build_run_id` értékét. Mindkét mód használható `verify_only=true` mellett is. A kiválasztott build linkje és forráscommitja megjelenik az összesítőben; hiányzó/lejárt artifact vagy hibás Defender-jelentés esetén a Publish leáll.

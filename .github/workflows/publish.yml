@@ -2,9 +2,16 @@ name: Publish installers
 on:
   workflow_dispatch:
     inputs:
+      build_selection:
+        description: Which build to publish
+        type: choice
+        default: Latest successful build
+        options:
+          - Latest successful build
+          - Specific build ID
       build_run_id:
-        description: Successful Build installers run ID to publish
-        required: true
+        description: Only for Specific build ID; leave empty for latest successful default-branch build
+        required: false
         type: string
       verify_only:
         description: Check the build and files without uploading
@@ -15,9 +22,10 @@ permissions:
   actions: read
 jobs:
   publish:
-    uses: edeori/vst-release-pipeline/.github/workflows/vst-publish.yml@77ec43881a0139d3e4a819432dcd4456ed2b6737
+    uses: edeori/vst-release-pipeline/.github/workflows/vst-publish.yml@8682c56f7460b450dcd1d22528e0a88a2fd2d24f
     with:
       product-id: whirldt
+      build-selection: ${{ inputs.build_selection == 'Specific build ID' && 'specific' || 'latest' }}
       build-run-id: ${{ inputs.build_run_id }}
       verify-only: ${{ inputs.verify_only }}
     secrets:
