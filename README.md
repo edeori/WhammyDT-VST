@@ -203,3 +203,17 @@ automatically via `FetchContent`.
 Builds VST3, AU, and Standalone. `COPY_PLUGIN_AFTER_BUILD` installs the VST3/AU into
 the system plugin folders automatically — a DAW rescan is all that's needed
 afterwards.
+
+## Tests
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+cmake --build build --config Release --target WhirlDTDSPTests WhirlDTRegressionTests
+ctest --test-dir build -C Release --output-on-failure
+```
+
+The existing DSP suite checks pitch, levels, transitions and bypass latency.
+`WhirlDTRegressionTests` additionally checks four-minute spectral renders,
+ring-buffer safety during pedal sweeps, nearest-peak phase locking, exact bypass
+after reset/reinitialisation, and host automation gestures from the Whirl selector.
+The selector checks initialise JUCE's GUI subsystem without opening a window.

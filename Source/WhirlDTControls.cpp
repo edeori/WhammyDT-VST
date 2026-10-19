@@ -176,12 +176,20 @@ WhirlSelectorKnob::WhirlSelectorKnob()
 
 void WhirlSelectorKnob::mouseDown (const juce::MouseEvent& e)
 {
+    dragGesture.reset();
+    if (! isEnabled() || e.mods.isPopupMenu())
+        return;
+
     dragStartValue = static_cast<double> (dialPositionForWhirlMode (juce::roundToInt (getValue())));
     dragStartY = e.position.y;
+    dragGesture = std::make_unique<juce::Slider::ScopedDragNotification> (*this);
 }
 
 void WhirlSelectorKnob::mouseDrag (const juce::MouseEvent& e)
 {
+    if (dragGesture == nullptr)
+        return;
+
     // Work in physical dial positions, not the host parameter's grouped
     // Harmony/Whammy/Detune index order.  Adjacent drag steps now always move
     // to the adjacent printed position around the panel.
@@ -196,6 +204,11 @@ void WhirlSelectorKnob::mouseDrag (const juce::MouseEvent& e)
 
     const auto position = juce::roundToInt (wrapped) % static_cast<int> (whirlDialPositionToMode.size());
     setValue (whirlDialPositionToMode[static_cast<size_t> (position)], juce::sendNotificationSync);
+}
+
+void WhirlSelectorKnob::mouseUp (const juce::MouseEvent&)
+{
+    dragGesture.reset();
 }
 
 void WhirlSelectorKnob::paint (juce::Graphics& g)

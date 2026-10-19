@@ -100,11 +100,9 @@ void Processor::PitchStage::SpectralShifter::prepare (double sampleRate, int cha
     // recent samples.
     const auto inputHistorySize = juce::nextPowerOfTwo (fftSize * 2);
 
-    // Generous headroom around the fftSize the resample reader must always
-    // stay behind the writer by (see runHop/processSample), plus room for
-    // the reader/writer gap to drift a little as the ratio changes
-    // continuously (the expression treadle sweeps every Whammy mode's ratio
-    // in real time) without the ring ever wrapping into itself.
+    // Frame placement follows the reader's integrated ratio, so their gap
+    // is bounded even during long renders and continuous pedal movement.
+    // Include space for a full frame and the history retained for clearing.
     const auto overlapSize = juce::nextPowerOfTwo (fftSize * 8);
 
     channels.resize (static_cast<size_t> (juce::jmax (1, channelCount)));
@@ -132,32 +130,32 @@ void Processor::PitchStage::SpectralShifter::reset()
         std::fill (channel.inputHistory.begin(), channel.inputHistory.end(), 0.0f);
         channel.inputWritePos = 0;
         channel.samplesUntilAnalysis = baseHop;
+        channel.samplesSinceAnalysis = 0;
         std::fill (channel.previousPhase.begin(), channel.previousPhase.end(), 0.0f);
         channel.havePreviousPhase = false;
         std::fill (channel.synthesisPhase.begin(), channel.synthesisPhase.end(), 0.0f);
         std::fill (channel.overlapAdd.begin(), channel.overlapAdd.end(), 0.0f);
         std::fill (channel.overlapNorm.begin(), channel.overlapNorm.end(), 0.0f);
-        // Start the reader a full window behind the writer so the first
-        // samples ever read come from a position that will have already
-        // been fully overlap-added by the time it's reached, rather than
-        // reading into not-yet-written silence at the ring's origin.
+        // Each analysis frame is placed a full window ahead of the reader.
+        // Startup reads silence until those frames reach the output.
         channel.writeCursor = fftSize;
         channel.clearedUpTo = 0;
         channel.readCursor = 0.0;
     }
 }
 
-void Processor::PitchStage::SpectralShifter::runHop (ChannelState& channel, float ratio) noexcept
+void Processor::PitchStage::SpectralShifter::runHop (ChannelState& channel) noexcept
 {
-    // Geometric-mean hop scaling: Hs/Ha = ratio exactly, and Ha*Hs stays
-    // constant, so degradation is bounded at both ends of the ratio range
-    // instead of blowing up on one side - Whammy alone needs r=0.125 (dive
-    // bomb) through r=4 (+24st) in the very same continuously-swept mode,
-    // so a fixed hop pair (which only degrades gracefully on one side) can't
-    // cover it.
-    const auto clampedRatio = juce::jlimit (0.125f, 4.0f, ratio);
-    const auto analysisHop = juce::jmax (1.0f, static_cast<float> (baseHop) / std::sqrt (clampedRatio));
-    const auto synthesisHop = juce::jmax (1.0f, static_cast<float> (baseHop) * std::sqrt (clampedRatio));
+    // Use the actual elapsed input samples for phase analysis. Independently
+    // rounding Ha and Hs makes the writer drift relative to the resampler.
+    // Instead, place each frame on the same integrated-ratio timeline as the
+    // reader, rounding its absolute position only. This also accounts for
+    // every intermediate ratio during an expression-pedal sweep.
+    const auto analysisHop = static_cast<float> (channel.samplesSinceAnalysis);
+    const auto frameStart = static_cast<int64_t> (std::llround (channel.readCursor)) + fftSize;
+    const auto synthesisHop = static_cast<float> (frameStart - channel.writeCursor);
+    channel.writeCursor = frameStart;
+    channel.samplesSinceAnalysis = 0;
 
     for (int i = 0; i < fftSize; ++i)
     {
@@ -214,9 +212,10 @@ void Processor::PitchStage::SpectralShifter::runHop (ChannelState& channel, floa
             {
                 // Every bin between the previous peak and this one belongs
                 // to whichever of the two is nearer.
-                const auto midpoint = lastPeak < 0 ? 0 : (lastPeak + bin) / 2;
-                for (int fill = juce::jmax (0, midpoint); fill < bin; ++fill)
-                    channel.regionPeak[static_cast<size_t> (fill)] = lastPeak < 0 ? bin : lastPeak;
+                const auto midpoint = (lastPeak + bin) / 2;
+                for (int fill = lastPeak + 1; fill < bin; ++fill)
+                    channel.regionPeak[static_cast<size_t> (fill)] =
+                        lastPeak >= 0 && fill <= midpoint ? lastPeak : bin;
                 channel.regionPeak[static_cast<size_t> (bin)] = bin;
                 lastPeak = bin;
                 ++peakCount;
@@ -245,7 +244,9 @@ void Processor::PitchStage::SpectralShifter::runHop (ChannelState& channel, floa
         // peaks' synthesis phase before this hop had updated it.
         for (int bin = 0; bin < numBins; ++bin)
             if (channel.regionPeak[static_cast<size_t> (bin)] == bin)
-                channel.synthesisPhase[static_cast<size_t> (bin)] += trueFrequencyAt (bin) * synthesisHop;
+                channel.synthesisPhase[static_cast<size_t> (bin)] = std::remainder (
+                    channel.synthesisPhase[static_cast<size_t> (bin)] + trueFrequencyAt (bin) * synthesisHop,
+                    twoPi);
 
         for (int bin = 0; bin < numBins; ++bin)
         {
@@ -274,7 +275,6 @@ void Processor::PitchStage::SpectralShifter::runHop (ChannelState& channel, floa
 
     fft->performRealOnlyInverseTransform (channel.fftData.data());
 
-    const auto hopSamples = juce::jmax (1, juce::roundToInt (synthesisHop));
     for (int i = 0; i < fftSize; ++i)
     {
         const auto idx = static_cast<size_t> ((channel.writeCursor + i) & channel.overlapMask);
@@ -282,7 +282,6 @@ void Processor::PitchStage::SpectralShifter::runHop (ChannelState& channel, floa
         channel.overlapAdd[idx] += channel.fftData[static_cast<size_t> (i)] * windowValue;
         channel.overlapNorm[idx] += windowValue * windowValue;
     }
-    channel.writeCursor += hopSamples;
 }
 
 float Processor::PitchStage::SpectralShifter::processSample (int channelIndex, float input, float ratio) noexcept
@@ -291,24 +290,19 @@ float Processor::PitchStage::SpectralShifter::processSample (int channelIndex, f
 
     channel.inputHistory[static_cast<size_t> (channel.inputWritePos)] = input;
     channel.inputWritePos = (channel.inputWritePos + 1) & channel.inputMask;
+    ++channel.samplesSinceAnalysis;
 
-    if (--channel.samplesUntilAnalysis <= 0)
+    // Future frames start after writeCursor, so samples before it are fully
+    // overlap-added. Bring analysis forward on a sudden ratio increase,
+    // before the reader can reach the last frame's start. Never rewind it.
+    if (--channel.samplesUntilAnalysis <= 0
+        || channel.readCursor + static_cast<double> (ratio) + 1.0 >= static_cast<double> (channel.writeCursor))
     {
-        runHop (channel, ratio);
+        runHop (channel);
         const auto clampedRatio = juce::jlimit (0.125f, 4.0f, ratio);
         const auto analysisHop = static_cast<float> (baseHop) / std::sqrt (clampedRatio);
         channel.samplesUntilAnalysis = juce::jmax (1, juce::roundToInt (analysisHop));
     }
-
-    // The reader must always stay at least a full window behind the writer:
-    // a position less than fftSize behind the write cursor may still
-    // receive further overlap-add contributions from frames not yet
-    // written, so reading it now would divide by a partial (too-small)
-    // normalisation sum. Clamping here (rather than assuming it never
-    // happens) matters specifically because the live ratio can drift
-    // continuously, so the reader/writer gap isn't perfectly constant.
-    const auto safeReadLimit = static_cast<double> (channel.writeCursor - fftSize);
-    channel.readCursor = juce::jmin (channel.readCursor, safeReadLimit);
 
     const auto base = static_cast<int64_t> (std::floor (channel.readCursor));
     const auto fraction = static_cast<float> (channel.readCursor - static_cast<double> (base));
@@ -418,6 +412,9 @@ void Processor::PitchStage::reset()
     enabledMix.setCurrentAndTargetValue (0.0f);
     frameRatio = 1.0f;
     frameAntiAliasCoefficient = 1.0f;
+    frameDryBlend = 0.0f;
+    frameOutputGain = 1.0f;
+    frameEnabledMix = 0.0f;
 
     spectralShifter.reset();
     hybridEngineTarget = false;

@@ -52,6 +52,7 @@ namespace WhirlDTDSP
         int getLatencySamples() const noexcept;
 
     private:
+        friend struct RegressionTestAccess;
         // Time-domain granular pitch shifter: four overlapping read pointers
         // ("grains") walk back through a short recent-history delay buffer at
         // `pitchRatio` samples per sample - reading faster than real time
@@ -100,6 +101,7 @@ namespace WhirlDTDSP
             void finishSample() noexcept;
 
         private:
+            friend struct RegressionTestAccess;
             struct ChannelBuffer
             {
                 std::vector<float> delayBuffer;
@@ -170,6 +172,7 @@ namespace WhirlDTDSP
                 float processSample (int channelIndex, float input, float ratio) noexcept;
 
             private:
+                friend struct RegressionTestAccess;
                 static constexpr int fftOrder = 11;
                 static constexpr int fftSize = 1 << fftOrder;      // 2048
                 static constexpr int numBins = fftSize / 2 + 1;    // 1025
@@ -183,6 +186,7 @@ namespace WhirlDTDSP
                     int inputMask = 0;
                     int inputWritePos = 0;
                     int samplesUntilAnalysis = 0;
+                    int samplesSinceAnalysis = 0;
 
                     std::vector<float> previousPhase;
                     bool havePreviousPhase = false;
@@ -197,6 +201,7 @@ namespace WhirlDTDSP
                     std::vector<float> overlapAdd;
                     std::vector<float> overlapNorm;
                     int64_t overlapMask = 0;
+                    // Start of the most recently added synthesis frame.
                     int64_t writeCursor = 0;
                     int64_t clearedUpTo = 0;
 
@@ -224,7 +229,7 @@ namespace WhirlDTDSP
                     std::vector<int> regionPeak;
                 };
 
-                void runHop (ChannelState& channel, float ratio) noexcept;
+                void runHop (ChannelState& channel) noexcept;
 
                 std::vector<ChannelState> channels;
                 std::unique_ptr<juce::dsp::FFT> fft;

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(WhirlDT VERSION 0.4.4)
+project(WhirlDT VERSION 0.4.5)
 
 include(CTest)
 
@@ -25,6 +25,7 @@ FetchContent_Declare(
     signalsmith-stretch
     GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-stretch.git
     GIT_TAG 57b93f4e9206a089a45387eaa39bdc9f310d3308
+    # A historical commit may not be reachable in a shallow clone.
     GIT_SHALLOW FALSE
 )
 
@@ -120,6 +121,20 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME WhirlDTDSPTests COMMAND WhirlDTDSPTests)
+
+    juce_add_console_app(WhirlDTRegressionTests PRODUCT_NAME "WhirlDT Regression Tests")
+    target_sources(WhirlDTRegressionTests PRIVATE
+        Tests/RegressionTests.cpp
+        Source/WhirlDTDSP.cpp
+        Source/WhirlDTControls.cpp
+        Source/WhirlDTLookAndFeel.cpp
+        Source/WhirlDTFonts.cpp)
+    target_include_directories(WhirlDTRegressionTests PRIVATE Source)
+    target_compile_definitions(WhirlDTRegressionTests PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+    target_link_libraries(WhirlDTRegressionTests PRIVATE
+        juce::juce_audio_processors juce::juce_dsp signalsmith-stretch WhirlDTAssets
+        juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+    add_test(NAME WhirlDTRegressionTests COMMAND WhirlDTRegressionTests)
 
     # Manual/offline validation utility for the large hardware profiling WAVs.
     # It is intentionally not registered with CTest because those recordings
