@@ -14,3 +14,9 @@ A kézi Publish-indítás a jóváhagyás; külön environment gate nincs. A kö
 A termékazonosító `whirldt`, a repo `edeori/WhammyDT-VST`, a plugin neve `WhirlDT`. A projektben jelenleg nincs aktiválási/licencelési modul. A Windows-telepítő nem Authenticode-aláírt; a Defender-vizsgálat nem ad SmartScreen-reputációt.
 
 A Windows-telepítő x64 VST3-at és választható standalone alkalmazást tartalmaz. A Mac csomag AU-t is tartalmaz. A közös workflow rögzített commitról érkezik az `edeori/vst-release-pipeline` repóból, a futások és a titkok a WhammyDT repóban vannak.
+
+## Ellenőrzés (2026-10-19)
+
+- Build: https://github.com/edeori/WhammyDT-VST/actions/runs/39263444328 — mindkét platform sikeres, Mac aláírás/notarizáció rendben, Windows Defender találat nélkül.
+- Külön Publish-próba: https://github.com/edeori/WhammyDT-VST/actions/runs/39263482405 — artifactok és Defender-hash ellenőrzése sikeres, `verify_only=true`, feltöltés kihagyva.
+- A teszt a GitHubon lévő 0.4.4-es kódot építette, a még nem commitolt helyi 0.4.5-módosításokat nem tartalmazza. Az éles Mac 0.4.5-ös telepítő változatlan tartalommal került az állandó `WhirlDT.pkg` címre; SHA-256 egyezés ellenőrizve. A próba nem írta felül sem a Mac-, sem a Windows-letöltést. A tesztbuild éles publikálása verzió-visszaállítás lehet, ezért a kívánt forrásverzió commitolása után indíts új buildet.
