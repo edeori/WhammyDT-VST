@@ -22,7 +22,7 @@ permissions:
   actions: read
 jobs:
   publish:
-    uses: edeori/vst-release-pipeline/.github/workflows/vst-publish.yml@8682c56f7460b450dcd1d22528e0a88a2fd2d24f
+    uses: edeori/vst-release-pipeline/.github/workflows/vst-publish.yml@87842d30522e76111d68b91e50a55759336ba201
     with:
       product-id: whirldt
       build-selection: ${{ inputs.build_selection == 'Specific build ID' && 'specific' || 'latest' }}
