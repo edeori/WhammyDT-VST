@@ -7,3 +7,6 @@ cmake-build-*/
 *.xcuserstate
 .DS_Store
 .claude
+
+# Local agent workspace state
+.serena/
