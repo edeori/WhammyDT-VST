@@ -25,7 +25,7 @@ FetchContent_Declare(
     signalsmith-stretch
     GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-stretch.git
     GIT_TAG 57b93f4e9206a089a45387eaa39bdc9f310d3308
-    GIT_SHALLOW TRUE
+    GIT_SHALLOW FALSE
 )
 
 FetchContent_MakeAvailable(JUCE signalsmith-stretch)
@@ -48,6 +48,12 @@ juce_add_binary_data(WhirlDTAssets
         Assets/Fonts/Rajdhani-Medium.ttf
 )
 
+if(WIN32)
+    set(WHIRLDT_COPY_PLUGIN_AFTER_BUILD FALSE)
+else()
+    set(WHIRLDT_COPY_PLUGIN_AFTER_BUILD TRUE)
+endif()
+
 juce_add_plugin(WhirlDT
     COMPANY_NAME "Moth Production"
     BUNDLE_ID "com.mothproduction.whirldt"
@@ -60,7 +66,7 @@ juce_add_plugin(WhirlDT
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-    COPY_PLUGIN_AFTER_BUILD TRUE
+    COPY_PLUGIN_AFTER_BUILD ${WHIRLDT_COPY_PLUGIN_AFTER_BUILD}
     VST3_CATEGORIES Fx
     AU_MAIN_TYPE kAudioUnitType_Effect
 )
